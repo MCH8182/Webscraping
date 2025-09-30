@@ -23,79 +23,13 @@ type Artikel struct {
 
 func main() {
 	// Koneksi database
-	connStr := "postgres://postgres.jfugaikxhuxsryzqpres:mtlfztox1987@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres"
-	pool, err := pgxpool.New(context.Background(), connStr)
+	err := db.StartConnection()
 	if err != nil {
-		log.Fatalf("Gagal konek database: %v", err)
+		log.Fatalf("Gagal konek database: %v\n", err)
 	}
-	defer pool.Close()
+	defer db.Pool.Close()
 
-	r := gin.Default()
-
-	// Secret key JWT
-	AccessToken := []byte("AccessToken")
-	RefreshToken := []byte("RefreshToken")
-
-	// Middleware untuk cek token
-	Middleware := func(c *gin.Context) {
-		Authoriz := c.GetHeader("Authorization")
-		if Authoriz == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token tidak ada"})
-			c.Abort()
-			return
-		}
-		auth, err := jwt.Parse(Authoriz, func(token *jwt.Token) (interface{}, error) {
-			return AccessToken, nil
-		})
-		if err != nil || !auth.Valid {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token tidak valid"})
-			c.Abort()
-			return
-
-		}
-
-	}
-
-	// LOGIN
-	r.POST("/login", func(c *gin.Context) {
-		var req struct {
-			Username string `json:"username"`
-			Password string `json:"password"`
-		}
-
-		if err := c.BindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Request tidak valid"})
-			return
-		}
-
-		// Dummy user: admin/password1
-		if req.Username != "admin" || req.Password != "password1" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Username/password salah"})
-			return
-		}
-
-		// Access token 15 menit
-		AccessClaims := jwt.MapClaims{
-			"username": req.Username,
-			"expired":  time.Now().Add(15 * time.Minute).Unix(),
-		}
-		access := jwt.NewWithClaims(jwt.SigningMethodHS256, AccessClaims)
-		at, _ := access.SignedString(AccessToken)
-
-		// Refresh token 7 hari
-		RefreshClaims := jwt.MapClaims{
-			"username": req.Username,
-			"expired":  time.Now().Add(7 * 24 * time.Hour).Unix(),
-		}
-		refresh := jwt.NewWithClaims(jwt.SigningMethodHS256, RefreshClaims)
-		rt, _ := refresh.SignedString(RefreshToken)
-
-		c.JSON(http.StatusOK, gin.H{
-			"access_token":  at,
-			"refresh_token": rt,
-		})
-	})
-
+	// TODO: pindahin ke api/controller/user.go
 	// REFRESH
 	r.POST("/refresh", func(c *gin.Context) {
 		var req struct {
@@ -139,6 +73,8 @@ func main() {
 			"refresh_token": rt,
 		})
 	})
+
+	// TODO: pindahin ke api/controller/news.go
 	// NEWS (protected)
 	r.GET("/news", Middleware, func(c *gin.Context) {
 		DaftarKategori := c.DefaultQuery("kategori", "")
@@ -193,5 +129,5 @@ func main() {
 		c.JSON(http.StatusOK, articles)
 	})
 
-	r.Run(":8080")
+	api.RunAPI()
 }
