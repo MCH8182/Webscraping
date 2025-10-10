@@ -4,7 +4,6 @@ import (
 	"goquery-example/api/middleware"
 	"goquery-example/api/schema"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -14,23 +13,19 @@ func StartUserRouter(engine *gin.Engine) {
 	r := engine.Group("/users")
 	r.GET("/login", loginUserHandler)
 	r.POST("/refresh", refreshTokenHandler)
-	// TODO: refresh token endpoint
 }
 
 // REFRESH
 func refreshTokenHandler(c *gin.Context) {
-
-	var req struct {
-		RefreshToken1 string `json:"refresh_token"`
-	}
+	var req schema.RefreshTokenRequest
 
 	if err := c.BindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Request tidak valid"})
 		return
 	}
 
-	token, err := jwt.Parse(req.RefreshToken1, func(token *jwt.Token) (interface{}, error) {
-		return RefreshToken, nil
+	token, err := jwt.Parse(req.RefreshToken, func(token *jwt.Token) (interface{}, error) {
+		return req.RefreshToken, nil
 	})
 
 	if err != nil || !token.Valid {
@@ -42,24 +37,18 @@ func refreshTokenHandler(c *gin.Context) {
 	username := claims["username"].(string)
 
 	// Buat token baru
-	AccessClaims := jwt.MapClaims{
-		"username": username,
-		"expired":  time.Now().Add(15 * time.Minute).Unix(),
-	}
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, AccessClaims)
-	at, _ := accessToken.SignedString(AccessToken)
-
-	RefreshClaims := jwt.MapClaims{
-		"username": username,
-		"expired":  time.Now().Add(7 * 24 * time.Hour).Unix(),
-	}
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, RefreshClaims)
-	rt, _ := refreshToken.SignedString(RefreshToken)
-
-	c.JSON(http.StatusOK, gin.H{
-		"access_token":  at,
-		"refresh_token": rt,
+	accessToken, err := middleware.GenerateJWT(middleware.AccessTokenType, func(a jwt.MapClaims) {
+		a["username"] = username
 	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error when generating access token"})
+		return
+	}
+
+	resp := schema.RefreshTokenResponse{
+		AccessToken: accessToken,
+	}
+	c.JSON(http.StatusOK, resp)
 }
 
 func loginUserHandler(c *gin.Context) {

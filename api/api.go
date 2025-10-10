@@ -24,7 +24,6 @@ func RunAPI() {
 
 func configureSubRouters(engine *gin.Engine) {
 	controller.StartUserRouter(engine)
-	// TODO: tambah router news
 	controller.StartNewsRouter(engine)
 }
 

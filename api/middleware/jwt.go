@@ -22,10 +22,10 @@ func generateToken(length int) string {
 }
 
 var (
-	AccessToken      = generateToken(32) // TODO: harusnya ini dibikin sesulit mungkin sih kayak password
-	RefreshToken     = generateToken(32)
-	AccessTokenType  = 0
-	RefreshTokenType = 1
+	AccessTokenPassword  = "YBtazYQBk1fKxqsDUYsYwZ6L1dUjpb8b8v9kz3fytTo=" // TODO: harusnya ini dibikin sesulit mungkin sih kayak password
+	RefreshTokenPassword = "jmsZlCYzQiIXOo9W2Uoz0GdzyBgRbacx_Ip21XgY69k="
+	AccessTokenType      = 0
+	RefreshTokenType     = 1
 )
 
 func GenerateJWT(tokenType int, callback func(jwt.MapClaims)) (string, error) {
@@ -38,8 +38,8 @@ func GenerateJWT(tokenType int, callback func(jwt.MapClaims)) (string, error) {
 
 	if tokenType == AccessTokenType {
 		jwtClaims["expired"] = time.Now().Add(15 * time.Minute).Unix()
-		accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, middleware.AccessToken)
-		accessTokenString, err := accessToken.SignedString(middleware.AccessToken)
+		accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtClaims)
+		accessTokenString, err := accessToken.SignedString(AccessTokenPassword)
 		if err != nil {
 			return "", err
 		}
@@ -47,8 +47,8 @@ func GenerateJWT(tokenType int, callback func(jwt.MapClaims)) (string, error) {
 	}
 
 	jwtClaims["expired"] = time.Now().Add(7 * 24 * time.Hour).Unix()
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, middleware.RefreshToken)
-	refreshTokenString, err := refreshToken.SignedString(middleware.RefreshToken)
+	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtClaims)
+	refreshTokenString, err := refreshToken.SignedString(RefreshTokenPassword)
 	if err != nil {
 		return "", err
 	}
@@ -57,24 +57,23 @@ func GenerateJWT(tokenType int, callback func(jwt.MapClaims)) (string, error) {
 
 // Middleware untuk cek token
 func VerifyJWT(c *gin.Context) {
-	Authoriz := c.GetHeader("Authorization")
-	if Authoriz == "" {
+	authoriz := c.GetHeader("Authorization")
+	if authoriz == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token tidak ada"})
 		c.Abort()
 		return
 	}
 
-	if Authoriz[:7] != "Bearer " {
+	if authoriz[:7] != "Bearer " {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Format token salah"})
 		c.Abort()
 		return
 	}
 
-	IsiToken := Authoriz[7:]
+	accessToken := authoriz[7:]
 
-	// TODO: harusnya cek juga formatnya "Bearer {access_token}"
-	auth, err := jwt.Parse(IsiToken, func(token *jwt.Token) (interface{}, error) {
-		return AccessToken, nil
+	auth, err := jwt.Parse(accessToken, func(token *jwt.Token) (interface{}, error) {
+		return AccessTokenPassword, nil
 	})
 	if err != nil || !auth.Valid {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token tidak valid"})
