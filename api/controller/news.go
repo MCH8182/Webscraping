@@ -2,6 +2,7 @@ package controller
 
 import (
 	"fmt"
+	"goquery-example/api/middleware"
 	"goquery-example/db"
 	"net/http"
 
@@ -11,8 +12,9 @@ import (
 
 func StartNewsRouter(engine *gin.Engine) {
 	// TODO tambah groups
-	// engine.GET("/news", middleware.VerifyJWT, getNews)
-	engine.GET("/news", getNews)
+	r := engine.Group("/news")
+	r.GET("", middleware.VerifyJWT, getNews)
+	// engine.GET("/news", getNews)
 }
 
 func getNews(c *gin.Context) {

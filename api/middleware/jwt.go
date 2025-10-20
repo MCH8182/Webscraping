@@ -36,11 +36,14 @@ func GenerateJWT(tokenType int, callback func(jwt.MapClaims)) (string, error) {
 	jwtClaims := jwt.MapClaims{}
 	callback(jwtClaims)
 
+	jwtClaims["gt"] = generateToken(32)
+
 	if tokenType == AccessTokenType {
 		jwtClaims["expired"] = time.Now().Add(15 * time.Minute).Unix()
 		accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtClaims)
-		accessTokenString, err := accessToken.SignedString(AccessTokenPassword)
+		accessTokenString, err := accessToken.SignedString([]byte(AccessTokenPassword))
 		if err != nil {
+			log.Println("Error signing access token: ", err)
 			return "", err
 		}
 		return accessTokenString, nil
@@ -48,8 +51,9 @@ func GenerateJWT(tokenType int, callback func(jwt.MapClaims)) (string, error) {
 
 	jwtClaims["expired"] = time.Now().Add(7 * 24 * time.Hour).Unix()
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwtClaims)
-	refreshTokenString, err := refreshToken.SignedString(RefreshTokenPassword)
+	refreshTokenString, err := refreshToken.SignedString([]byte(RefreshTokenPassword))
 	if err != nil {
+		log.Println("Error signing refresh token: ", err)
 		return "", err
 	}
 	return refreshTokenString, nil
@@ -73,7 +77,7 @@ func VerifyJWT(c *gin.Context) {
 	accessToken := authoriz[7:]
 
 	auth, err := jwt.Parse(accessToken, func(token *jwt.Token) (interface{}, error) {
-		return AccessTokenPassword, nil
+		return []byte(AccessTokenPassword), nil
 	})
 	if err != nil || !auth.Valid {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token tidak valid"})
